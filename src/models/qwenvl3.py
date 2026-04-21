@@ -87,13 +87,14 @@ class Qwen3VLModel:
         model, processor = self.load()
         config = generation_config or self.generation_config
         
-        # Prepare inputs
+        # Prepare inputs (max_pixels caps image resolution to avoid OOM)
         inputs = processor.apply_chat_template(
             messages,
             tokenize=True,
             add_generation_prompt=True,
             return_dict=True,
-            return_tensors="pt"
+            return_tensors="pt",
+            max_pixels=768*28*28
         ).to(self.device)
         
         # Merge config with any overrides
