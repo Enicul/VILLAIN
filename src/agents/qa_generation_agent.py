@@ -180,6 +180,14 @@ class QAGenerationAgent(BaseAgent):
 
         return AGENT4_PREVIOUS_QA.format(previous_qa_list="\n".join(qa_list))
 
+    def _try_parse_json(self, json_str: str) -> dict:
+        """Parse JSON string, retrying after cleaning trailing commas."""
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            cleaned = re.sub(r',\s*([}\]])', r'\1', json_str)
+            return json.loads(cleaned)
+
     def _parse_qa_response(self, response_text: str) -> List[QAPair]:
         """Parse JSON response to extract QA pairs."""
         if '</think>' in response_text:
@@ -196,7 +204,7 @@ class QAGenerationAgent(BaseAgent):
                 else:
                     return []
 
-            data = json.loads(json_str)
+            data = self._try_parse_json(json_str)
             qa_pairs = []
             # Check both "qa_pairs" (new format) and "questions" (old format)
             qa_list = data.get("qa_pairs", data.get("questions", []))

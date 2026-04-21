@@ -50,6 +50,14 @@ class VerdictAgent(BaseAgent):
             lines.append(f"   **A:** {qa.answer}")
         return "\n".join(lines)
 
+    def _try_parse_json(self, json_str: str) -> dict:
+        """Parse JSON string, retrying after cleaning trailing commas."""
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            cleaned = re.sub(r',\s*([}\]])', r'\1', json_str)
+            return json.loads(cleaned)
+
     def _parse_verdict_response(self, response_text: str) -> VerdictResult:
         """Parse JSON response from VLM."""
         result = VerdictResult(raw_response=response_text)
@@ -68,7 +76,7 @@ class VerdictAgent(BaseAgent):
                 else:
                     return result
 
-            data = json.loads(json_str)
+            data = self._try_parse_json(json_str)
 
             for qa in data.get("questions", []):
                 q = qa.get("question", "")
