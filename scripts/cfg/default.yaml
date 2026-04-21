@@ -26,11 +26,11 @@ stores:
 # Model Configuration
 # =============================================================================
 models:
-  text_model: "mixedbread-ai/mxbai-embed-large-v1"
+  text_model: "/home/aied_test/models/mxbai-embed-large-v1"
   text_model_type: "mxbai"  # Options: qwen, mxbai
-  image_model: "OpenSearch-AI/Ops-MM-embedding-v1-7B"
+  image_model: "/home/aied_test/models/Ops-MM-embedding-v1-7B"
   vlm_model: "/home/aied_test/models/Qwen2.5-VL-7B-Instruct"
-  reranker_model: "mixedbread-ai/mxbai-rerank-large-v1"
+  reranker_model: "/home/aied_test/models/mxbai-rerank-large-v1"
   device: "cuda:0"
 
 # =============================================================================
