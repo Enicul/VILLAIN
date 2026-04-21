@@ -202,7 +202,7 @@ Examples:
     text_model = get_nested(cfg, 'models', 'text_model', default='Qwen/Qwen3-Embedding-8B')
     text_model_type = get_nested(cfg, 'models', 'text_model_type', default='qwen')
     image_model = get_nested(cfg, 'models', 'image_model', default='OpenSearch-AI/Ops-MM-embedding-v1-7B')
-    vlm_model = get_nested(cfg, 'models', 'vlm_model', default='Qwen/Qwen3-VL-8B-Thinking')
+    vlm_model = get_nested(cfg, 'models', 'vlm_model', default='Qwen/Qwen2.5-VL-7B-Instruct')
     reranker_model = get_nested(cfg, 'models', 'reranker_model', default='Qwen/Qwen3-Reranker-8B')
 
     # Evidence configuration

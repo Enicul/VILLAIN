@@ -54,7 +54,7 @@ class AgentConfig:
     text_model: str = "Qwen/Qwen3-Embedding-8B"
     text_model_type: str = "qwen"  # 'qwen', 'mxbai', or 'nomic'
     image_model: str = "OpenSearch-AI/Ops-MM-embedding-v1-7B"
-    vlm_model: str = "Qwen/Qwen3-VL-8B-Thinking"  # VLM for all agents
+    vlm_model: str = "Qwen/Qwen2.5-VL-7B-Instruct"  # VLM for all agents
     reranker_model: str = "Qwen/Qwen3-Reranker-8B"  # Reranker model
 
 
