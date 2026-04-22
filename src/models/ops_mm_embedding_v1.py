@@ -30,7 +30,7 @@ class OpsMMEmbeddingV1(nn.Module):
             attn_implementation=attn_implementation,
         ).to(self.device)
 
-        self.processor = AutoProcessor.from_pretrained(model_name, min_pixels=256 * 28 * 28, max_pixels=1280 * 28 * 28)
+        self.processor = AutoProcessor.from_pretrained(model_name, min_pixels=256 * 28 * 28, max_pixels=512 * 28 * 28)
         self.processor.tokenizer.padding_side = "left"
         self.eval()
 
