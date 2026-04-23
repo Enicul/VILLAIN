@@ -1,5 +1,7 @@
 """Qwen3-VL model wrapper for the multi-agent pipeline."""
 
+import json
+import os
 import torch
 from dataclasses import dataclass
 from typing import List, Dict, Optional
@@ -33,23 +35,52 @@ class Qwen3VLModel:
         self._model = None
         self._processor = None
     
+    def _is_lora_checkpoint(self) -> bool:
+        """Check if model_name points to a LoRA adapter checkpoint."""
+        adapter_config = os.path.join(self.model_name, "adapter_config.json")
+        return os.path.exists(adapter_config)
+
+    def _get_base_model_path(self) -> str:
+        """Get base model path from LoRA adapter_config.json."""
+        adapter_config = os.path.join(self.model_name, "adapter_config.json")
+        with open(adapter_config, "r") as f:
+            config = json.load(f)
+        return config["base_model_name_or_path"]
+
     def load(self):
-        """Load the model and processor."""
+        """Load the model and processor, supporting both full models and LoRA adapters."""
         if self._model is None:
             print(f"[Qwen3VLModel] Loading model: {self.model_name}")
-            # Use AutoModelForVision2Seq which will load the correct architecture from config
-            self._model = AutoModelForVision2Seq.from_pretrained(
-                self.model_name,
-                torch_dtype=torch.bfloat16,
-                device_map=self.device,
-                trust_remote_code=True  # Required for Qwen3-VL
-            )
-            self._model.eval()
 
-            self._processor = AutoProcessor.from_pretrained(
-                self.model_name,
-                trust_remote_code=True
-            )
+            if self._is_lora_checkpoint():
+                from peft import PeftModel
+                base_model_path = self._get_base_model_path()
+                print(f"[Qwen3VLModel] Detected LoRA adapter. Base model: {base_model_path}")
+
+                base_model = AutoModelForVision2Seq.from_pretrained(
+                    base_model_path,
+                    torch_dtype=torch.bfloat16,
+                    device_map=self.device,
+                    trust_remote_code=True
+                )
+                self._model = PeftModel.from_pretrained(base_model, self.model_name)
+                self._processor = AutoProcessor.from_pretrained(
+                    base_model_path,
+                    trust_remote_code=True
+                )
+            else:
+                self._model = AutoModelForVision2Seq.from_pretrained(
+                    self.model_name,
+                    torch_dtype=torch.bfloat16,
+                    device_map=self.device,
+                    trust_remote_code=True
+                )
+                self._processor = AutoProcessor.from_pretrained(
+                    self.model_name,
+                    trust_remote_code=True
+                )
+
+            self._model.eval()
             print(f"[Qwen3VLModel] Model loaded on {self.device}")
 
         return self._model, self._processor

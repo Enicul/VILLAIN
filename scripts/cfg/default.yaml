@@ -8,7 +8,7 @@ data:
   data_path: "dataset/AVerImaTeC/val.json"
   train_data_path: "dataset/AVerImaTeC/train.json"
   image_dir: "dataset/AVerImaTeC/images"
-  output_dir: "outputs-final-val-qwen2.5-vl-7b"
+  output_dir: "outputs-final-val-suppressed-lora-layer12-l05"
   target: "val"  # val, test, etc.
 
 # =============================================================================
@@ -29,7 +29,7 @@ models:
   text_model: "/home/aied_test/models/mxbai-embed-large-v1"
   text_model_type: "mxbai"  # Options: qwen, mxbai
   image_model: "/home/aied_test/models/Ops-MM-embedding-v1-7B"
-  vlm_model: "/home/aied_test/models/Qwen2.5-VL-7B-Instruct"
+  vlm_model: "/home/aied_test/ParamMute/checkpoints/qwen2vl_lora_layer12_lambda0.5"
   reranker_model: "/home/aied_test/models/mxbai-rerank-large-v1"
   device: "cuda:0"
 
