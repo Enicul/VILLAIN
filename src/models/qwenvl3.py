@@ -94,7 +94,7 @@ class Qwen3VLModel:
             add_generation_prompt=True,
             return_dict=True,
             return_tensors="pt",
-            max_pixels=768*28*28
+            max_pixels=256*28*28
         ).to(self.device)
         
         # Merge config with any overrides
