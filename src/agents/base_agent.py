@@ -304,7 +304,8 @@ class SharedModels:
         max_new_tokens: int = 40960,
         temperature: float = 1.0,
         top_p: float = 0.95,
-        top_k: int = 20
+        top_k: int = 20,
+        **kwargs
     ) -> str:
         """Generate text using the VLM model.
 
@@ -315,7 +316,8 @@ class SharedModels:
             return self.vlm.generate(
                 messages,
                 max_new_tokens=max_new_tokens,
-                temperature=temperature
+                temperature=temperature,
+                **kwargs
             )
         else:
             return self.vlm.generate(
@@ -323,7 +325,8 @@ class SharedModels:
                 max_new_tokens=max_new_tokens,
                 temperature=temperature,
                 top_p=top_p,
-                top_k=top_k
+                top_k=top_k,
+                **kwargs
             )
 
     def extract_response_after_think(self, output_text: str) -> str:
@@ -438,4 +441,3 @@ class BaseAgent(ABC):
             f'image_related_store_image_{self.config.target}',
             str(claim_id)
         )
-

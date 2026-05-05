@@ -94,6 +94,47 @@ class VerdictAgent(BaseAgent):
 
         return result
 
+    def _verdict_json_schema(self) -> dict:
+        """JSON schema for constrained verdict generation."""
+        return {
+            "type": "object",
+            "properties": {
+                "reasoning": {
+                    "type": "string",
+                    "maxLength": 1500,
+                },
+                "questions": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": max(1, self.num_qa_to_select),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "question": {"type": "string", "maxLength": 500},
+                            "answer": {"type": "string", "maxLength": 1200},
+                        },
+                        "required": ["question", "answer"],
+                        "additionalProperties": False,
+                    },
+                },
+                "veracity_verdict": {
+                    "type": "string",
+                    "enum": [
+                        "Supported",
+                        "Refuted",
+                        "Not Enough Evidence",
+                        "Conflicting Evidence/Cherrypicking",
+                    ],
+                },
+                "justification": {
+                    "type": "string",
+                    "maxLength": 1500,
+                },
+            },
+            "required": ["reasoning", "questions", "veracity_verdict", "justification"],
+            "additionalProperties": False,
+        }
+
     def _create_fallback_result(self, claim_text: str, qa_pairs: List[QAPair]) -> VerdictResult:
         """Create fallback result when parsing fails."""
         default_question = f"Is the following claim true: {claim_text[:200]}...?" if len(claim_text) > 200 else f"Is the following claim true: {claim_text}?"
@@ -148,7 +189,14 @@ class VerdictAgent(BaseAgent):
         messages = [{"role": "user", "content": content}]
 
         try:
-            output_text = self.shared_models.generate_with_vlm(messages)
+            output_text = self.shared_models.generate_with_vlm(
+                messages,
+                max_new_tokens=2048,
+                do_sample=False,
+                repetition_penalty=1.05,
+                no_repeat_ngram_size=8,
+                json_schema=self._verdict_json_schema(),
+            )
             result = self._parse_verdict_response(output_text)
 
             if not result.selected_qa_pairs:
@@ -200,4 +248,3 @@ class VerdictAgent(BaseAgent):
                 'raw_response': verdict_result.raw_response
             }
         )
-
