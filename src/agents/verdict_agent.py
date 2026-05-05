@@ -101,7 +101,6 @@ class VerdictAgent(BaseAgent):
             "properties": {
                 "reasoning": {
                     "type": "string",
-                    "maxLength": 1500,
                 },
                 "questions": {
                     "type": "array",
@@ -110,8 +109,8 @@ class VerdictAgent(BaseAgent):
                     "items": {
                         "type": "object",
                         "properties": {
-                            "question": {"type": "string", "maxLength": 500},
-                            "answer": {"type": "string", "maxLength": 1200},
+                            "question": {"type": "string"},
+                            "answer": {"type": "string"},
                         },
                         "required": ["question", "answer"],
                         "additionalProperties": False,
@@ -128,7 +127,6 @@ class VerdictAgent(BaseAgent):
                 },
                 "justification": {
                     "type": "string",
-                    "maxLength": 1500,
                 },
             },
             "required": ["reasoning", "questions", "veracity_verdict", "justification"],
@@ -191,7 +189,7 @@ class VerdictAgent(BaseAgent):
         try:
             output_text = self.shared_models.generate_with_vlm(
                 messages,
-                max_new_tokens=2048,
+                max_new_tokens=2560,
                 do_sample=False,
                 repetition_penalty=1.05,
                 no_repeat_ngram_size=8,

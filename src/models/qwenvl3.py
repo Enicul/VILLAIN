@@ -147,12 +147,13 @@ class Qwen3VLModel:
         # Merge config with any overrides
         gen_kwargs = {
             "max_new_tokens": kwargs.get("max_new_tokens", config.max_new_tokens),
-            "temperature": kwargs.get("temperature", config.temperature),
-            "top_p": kwargs.get("top_p", config.top_p),
-            "top_k": kwargs.get("top_k", config.top_k),
             "repetition_penalty": kwargs.get("repetition_penalty", config.repetition_penalty),
             "do_sample": kwargs.get("do_sample", config.do_sample),
         }
+        if gen_kwargs["do_sample"]:
+            gen_kwargs["temperature"] = kwargs.get("temperature", config.temperature)
+            gen_kwargs["top_p"] = kwargs.get("top_p", config.top_p)
+            gen_kwargs["top_k"] = kwargs.get("top_k", config.top_k)
         if kwargs.get("no_repeat_ngram_size") is not None:
             gen_kwargs["no_repeat_ngram_size"] = kwargs["no_repeat_ngram_size"]
         if kwargs.get("json_schema") is not None:

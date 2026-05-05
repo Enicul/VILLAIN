@@ -226,7 +226,6 @@ class QAGenerationAgent(BaseAgent):
             "properties": {
                 "reasoning": {
                     "type": "string",
-                    "maxLength": 1500,
                 },
                 "qa_pairs": {
                     "type": "array",
@@ -235,8 +234,8 @@ class QAGenerationAgent(BaseAgent):
                     "items": {
                         "type": "object",
                         "properties": {
-                            "question": {"type": "string", "maxLength": 500},
-                            "answer": {"type": "string", "maxLength": 1200},
+                            "question": {"type": "string"},
+                            "answer": {"type": "string"},
                         },
                         "required": ["question", "answer"],
                         "additionalProperties": False,
@@ -311,7 +310,7 @@ class QAGenerationAgent(BaseAgent):
             try:
                 output_text = self.shared_models.generate_with_vlm(
                     messages,
-                    max_new_tokens=2048,
+                    max_new_tokens=2560,
                     do_sample=False,
                     repetition_penalty=1.05,
                     no_repeat_ngram_size=8,
