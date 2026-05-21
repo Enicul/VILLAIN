@@ -219,6 +219,33 @@ class QAGenerationAgent(BaseAgent):
             print(f"[{self.name}] Parse error: {e}")
             return []
 
+    def _qa_json_schema(self, num_to_generate: int) -> dict:
+        """JSON schema for constrained QA generation."""
+        return {
+            "type": "object",
+            "properties": {
+                "reasoning": {
+                    "type": "string",
+                },
+                "qa_pairs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": max(1, num_to_generate),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "question": {"type": "string"},
+                            "answer": {"type": "string"},
+                        },
+                        "required": ["question", "answer"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "required": ["reasoning", "qa_pairs"],
+            "additionalProperties": False,
+        }
+
     def generate_qa_pairs(
         self,
         claim_text: str,
@@ -281,7 +308,14 @@ class QAGenerationAgent(BaseAgent):
             messages = [{"role": "user", "content": content}]
 
             try:
-                output_text = self.shared_models.generate_with_vlm(messages)
+                output_text = self.shared_models.generate_with_vlm(
+                    messages,
+                    max_new_tokens=2560,
+                    do_sample=False,
+                    repetition_penalty=1.05,
+                    no_repeat_ngram_size=8,
+                    json_schema=self._qa_json_schema(num_to_generate),
+                )
                 result.raw_responses.append(output_text)
 
                 new_qa_pairs = self._parse_qa_response(output_text)
@@ -350,4 +384,3 @@ class QAGenerationAgent(BaseAgent):
                 'raw_responses': qa_result.raw_responses
             }
         )
-

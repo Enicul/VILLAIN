@@ -98,6 +98,22 @@ class Qwen3VLModel:
         if self._processor is None:
             self.load()
         return self._processor
+
+    def _build_json_prefix_allowed_tokens_fn(self, json_schema: Dict):
+        """Build a token constraint callback for JSON-schema constrained decoding."""
+        try:
+            from lmformatenforcer import JsonSchemaParser
+            from lmformatenforcer.integrations.transformers import (
+                build_transformers_prefix_allowed_tokens_fn,
+            )
+        except ImportError as exc:
+            raise RuntimeError(
+                "JSON constrained decoding requires lm-format-enforcer. "
+                "Install it or call generate without json_schema."
+            ) from exc
+
+        parser = JsonSchemaParser(json_schema)
+        return build_transformers_prefix_allowed_tokens_fn(self.processor.tokenizer, parser)
     
     def generate(
         self,
@@ -131,12 +147,19 @@ class Qwen3VLModel:
         # Merge config with any overrides
         gen_kwargs = {
             "max_new_tokens": kwargs.get("max_new_tokens", config.max_new_tokens),
-            "temperature": kwargs.get("temperature", config.temperature),
-            "top_p": kwargs.get("top_p", config.top_p),
-            "top_k": kwargs.get("top_k", config.top_k),
             "repetition_penalty": kwargs.get("repetition_penalty", config.repetition_penalty),
             "do_sample": kwargs.get("do_sample", config.do_sample),
         }
+        if gen_kwargs["do_sample"]:
+            gen_kwargs["temperature"] = kwargs.get("temperature", config.temperature)
+            gen_kwargs["top_p"] = kwargs.get("top_p", config.top_p)
+            gen_kwargs["top_k"] = kwargs.get("top_k", config.top_k)
+        if kwargs.get("no_repeat_ngram_size") is not None:
+            gen_kwargs["no_repeat_ngram_size"] = kwargs["no_repeat_ngram_size"]
+        if kwargs.get("json_schema") is not None:
+            gen_kwargs["prefix_allowed_tokens_fn"] = self._build_json_prefix_allowed_tokens_fn(
+                kwargs["json_schema"]
+            )
         
         with torch.no_grad():
             generated_ids = model.generate(**inputs, **gen_kwargs)
@@ -179,4 +202,3 @@ class Qwen3VLModel:
         """
         output = self.generate(messages, generation_config, **kwargs)
         return self.extract_response_after_think(output)
-

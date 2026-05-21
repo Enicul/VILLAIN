@@ -149,6 +149,7 @@ Analyze the provided forensic reports to extract the **core information** necess
 # Output Format (JSON Only)
 ```json
 {{
+    "reasoning": "<Think step by step in 2-4 concise sentences. Identify what the claim asserts about text and images, then combine the preliminary analyses to decide which QA pairs best support the final verdict.>",
     "qa_pairs": [
         {{"question": "<Question 1>", "answer": "<Full statement answer 1>"}},
         {{"question": "<Question 2>", "answer": "<Full statement answer 2>"}}
@@ -192,6 +193,7 @@ AGENT5_PROMPT2 = """
 # Output Format (JSON Only)
 ```json
 {{
+    "reasoning": "<Think step by step in 2-4 concise sentences. Identify what the selected QA pairs establish, check whether the evidence supports or refutes the claim, then decide the final verdict.>",
     "questions": [
         {{"question": "<Selected question 1>", "answer": "<Answer 1>"}},
         {{"question": "<Selected question 2>", "answer": "<Answer 2>"}}
@@ -201,4 +203,3 @@ AGENT5_PROMPT2 = """
 }}
 ```
 """
-
