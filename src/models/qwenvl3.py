@@ -2,6 +2,7 @@
 
 import json
 import os
+import types
 import torch
 from dataclasses import dataclass
 from typing import List, Dict, Optional
@@ -26,11 +27,15 @@ class Qwen3VLModel:
         self,
         model_name: str = "Qwen/Qwen2.5-VL-7B-Instruct",
         device: str = "cuda:0",
-        generation_config: Optional[GenerationConfig] = None
+        generation_config: Optional[GenerationConfig] = None,
+        suppression_strength: float = 1.0,
+        suppression_layers: Optional[List[int]] = None
     ):
         self.model_name = model_name
         self.device = device
         self.generation_config = generation_config or GenerationConfig()
+        self.suppression_strength = suppression_strength
+        self.suppression_layers = suppression_layers or []
         
         self._model = None
         self._processor = None
@@ -46,6 +51,49 @@ class Qwen3VLModel:
         with open(adapter_config, "r") as f:
             config = json.load(f)
         return config["base_model_name_or_path"]
+
+    def _apply_ffn_suppression(self):
+        """Apply ParamMute-style runtime scaling to selected language MLP layers."""
+        if self.suppression_strength >= 1.0 or not self.suppression_layers:
+            print(
+                f"[Qwen3VLModel] ffn_suppression_disabled strength={self.suppression_strength} layers={self.suppression_layers}",
+                flush=True,
+            )
+            return
+
+        target_layers = {int(layer) for layer in self.suppression_layers}
+        patched = []
+        for name, module in self._model.named_modules():
+            parts = name.split(".")
+            if "visual" in name:
+                continue
+            if len(parts) < 2 or parts[-1] != "mlp" or not parts[-2].isdigit():
+                continue
+            layer_idx = int(parts[-2])
+            if layer_idx not in target_layers:
+                continue
+
+            orig_forward = module.forward
+
+            def make_patched(orig, scale):
+                def patched_forward(*args, **kwargs):
+                    return orig(*args, **kwargs) * scale
+                return patched_forward
+
+            module.forward = types.MethodType(
+                lambda self, *args, _f=make_patched(orig_forward, self.suppression_strength), **kwargs: _f(*args, **kwargs),
+                module,
+            )
+            patched.append(f"{name} (layer {layer_idx})")
+
+        if not patched:
+            raise RuntimeError(
+                f"No language MLP modules found for suppression layers {sorted(target_layers)}"
+            )
+        print(
+            f"[Qwen3VLModel] parammute_runtime_suppression strength={self.suppression_strength} patched={patched}",
+            flush=True,
+        )
 
     def load(self):
         """Load the model and processor, supporting both full models and LoRA adapters."""
@@ -80,6 +128,7 @@ class Qwen3VLModel:
                     trust_remote_code=True
                 )
 
+            self._apply_ffn_suppression()
             self._model.eval()
             print(f"[Qwen3VLModel] Model loaded on {self.device}")
 

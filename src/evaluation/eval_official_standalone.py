@@ -443,7 +443,7 @@ def textual_val_single(ref, pred, path, eval_name, model, eval_type="", debug_mo
 
     if 'gemini' in eval_name:
         response = model.models.generate_content(
-            model='gemini-2.0-flash-001',
+            model=eval_name,
             contents=incontext_input
         )
         feedback = response.text
@@ -486,7 +486,7 @@ def val_evid_idv(model, model_name, pred_evid, ref_evid, text_val, seperate_val)
 
         if 'gemini' in model_name:
             response = model.models.generate_content(
-                model='gemini-2.0-flash-001',
+                model=model_name,
                 contents=incontext_input
             )
             feedback = response.text
@@ -512,7 +512,7 @@ def val_evid_idv(model, model_name, pred_evid, ref_evid, text_val, seperate_val)
         incontext_input = gen_incontext_input_textonly(pred, ref, template)
         if 'gemini' in model_name:
             response = model.models.generate_content(
-                model='gemini-2.0-flash-001',
+                model=model_name,
                 contents=incontext_input
             )
             feedback = response.text
@@ -571,7 +571,7 @@ def compute_image_scores(model, model_name, pred_evid, ref_evid, evid_val_score)
                         inputs.append(Image.open(img).convert('RGB'))
                     inputs.append('\nPlease generate your rating with one integer:')
                     response = model.models.generate_content(
-                        model='gemini-2.0-flash-001',
+                        model=model_name,
                         contents=inputs
                     )
                     feedback = response.text
@@ -626,7 +626,7 @@ def compute_image_scores(model, model_name, pred_evid, ref_evid, evid_val_score)
                         inputs.append(Image.open(img).convert('RGB'))
                     inputs.append('\nPlease generate your rating with one integer:')
                     response = model.models.generate_content(
-                        model='gemini-2.0-flash-001',
+                        model=model_name,
                         contents=inputs
                     )
                     feedback = response.text
@@ -667,12 +667,161 @@ def compute_image_scores(model, model_name, pred_evid, ref_evid, evid_val_score)
 # Model Loading
 # ============================================================================
 
+
+
+
+
+class _OpenRouterGenerateContentResponse:
+    def __init__(self, payload):
+        self.payload = payload
+        self.text = (((payload.get("choices") or [{}])[0].get("message") or {}).get("content") or "").strip()
+
+
+class _OpenRouterGenerateContentModels:
+    def __init__(self, api_key, model_name="google/gemini-2.5-flash", timeout=180):
+        self.api_key = api_key
+        self.model_name = model_name
+        self.timeout = timeout
+        self.endpoint = "https://openrouter.ai/api/v1/chat/completions"
+        self.referer = os.environ.get("OPENROUTER_HTTP_REFERER", "https://localhost")
+        self.title = os.environ.get("OPENROUTER_X_TITLE", "AVerImaTeC evaluation")
+
+    def _image_data_url(self, image):
+        import base64, io
+        buf = io.BytesIO()
+        image.save(buf, format="PNG")
+        return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+
+    def _message_content(self, contents):
+        if isinstance(contents, list):
+            parts = []
+            for item in contents:
+                if isinstance(item, str):
+                    parts.append({"type": "text", "text": item})
+                else:
+                    try:
+                        from PIL import Image
+                        if isinstance(item, Image.Image):
+                            parts.append({"type": "image_url", "image_url": {"url": self._image_data_url(item)}})
+                            continue
+                    except Exception:
+                        pass
+                    parts.append({"type": "text", "text": str(item)})
+            return parts
+        return str(contents)
+
+    def generate_content(self, model=None, contents=None):
+        import random, time, requests
+        payload = {"model": self.model_name, "messages": [{"role": "user", "content": self._message_content(contents)}]}
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": self.referer,
+            "X-Title": self.title,
+        }
+        last_err = None
+        for attempt in range(8):
+            resp = requests.post(self.endpoint, headers=headers, json=payload, timeout=self.timeout)
+            if resp.status_code in (429, 500, 502, 503, 504):
+                last_err = RuntimeError(f"openrouter HTTP {resp.status_code}: {resp.text[:500]}")
+                retry_after = resp.headers.get("retry-after")
+                wait = min(120, (2 ** attempt) + random.random())
+                if retry_after:
+                    try: wait = max(wait, float(retry_after))
+                    except ValueError: pass
+                time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            return _OpenRouterGenerateContentResponse(resp.json())
+        raise last_err
+
+
+class OpenRouterGenerateContentClient:
+    def __init__(self, api_key, model_name="google/gemini-2.5-flash"):
+        self.models = _OpenRouterGenerateContentModels(api_key, model_name)
+
+class _CustomGenerateContentResponse:
+    def __init__(self, payload):
+        self.payload = payload
+        self.text = self._extract_text(payload)
+
+    @staticmethod
+    def _extract_text(payload):
+        parts = []
+        for cand in payload.get("candidates", []) or []:
+            content = cand.get("content", {}) or {}
+            for part in content.get("parts", []) or []:
+                if "text" in part:
+                    parts.append(part.get("text") or "")
+        return "\n".join(parts).strip()
+
+
+class _CustomGenerateContentModels:
+    def __init__(self, endpoint, api_key, timeout=120):
+        self.endpoint = endpoint
+        self.api_key = api_key
+        self.timeout = timeout
+
+    def _part(self, item):
+        if isinstance(item, str):
+            return {"text": item}
+        try:
+            from PIL import Image
+            if isinstance(item, Image.Image):
+                import base64, io
+                buf = io.BytesIO()
+                item.save(buf, format="PNG")
+                return {"inlineData": {"mimeType": "image/png", "data": base64.b64encode(buf.getvalue()).decode("ascii")}}
+        except Exception:
+            pass
+        return {"text": str(item)}
+
+    def generate_content(self, model=None, contents=None):
+        import os, random, time, requests
+        if isinstance(contents, list):
+            parts = [self._part(x) for x in contents]
+        else:
+            parts = [self._part(contents)]
+        payload = {"contents": [{"role": "user", "parts": parts}]}
+        headers = {"Content-Type": "application/json", "api-key": self.api_key}
+        last_err = None
+        for attempt in range(8):
+            resp = requests.post(self.endpoint, headers=headers, json=payload, timeout=self.timeout, verify=(os.environ.get("GENAI_VERIFY_SSL", "true").lower() not in {"0", "false", "no"}))
+            if resp.status_code in (429, 500, 502, 503, 504):
+                last_err = RuntimeError(f"custom genai HTTP {resp.status_code}: {resp.text[:500]}")
+                wait = min(90, (2 ** attempt) + random.random())
+                retry_after = resp.headers.get("retry-after")
+                if retry_after:
+                    try: wait = max(wait, float(retry_after))
+                    except ValueError: pass
+                time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            return _CustomGenerateContentResponse(resp.json())
+        raise last_err
+
+
+class CustomGenerateContentClient:
+    def __init__(self, endpoint, api_key):
+        self.models = _CustomGenerateContentModels(endpoint, api_key)
+
+
 def load_evaluation_model(model_name, cache_dir=None, api_key=None):
     """Load the evaluation model (Gemini API or Gemma-3 local)"""
     print(f"Loading evaluation model: {model_name}")
 
     # Check if using Gemini API
     if 'gemini' in model_name:
+        openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+        custom_endpoint = os.environ.get("GENAI_ENDPOINT")
+        custom_key = os.environ.get("GENAI_SUBSCRIPTION_KEY")
+        if openrouter_key:
+            print(f"✓ Loaded OpenRouter model: {model_name}")
+            return OpenRouterGenerateContentClient(openrouter_key, model_name)
+        if custom_endpoint and custom_key:
+            print(f"✓ Loaded custom generateContent endpoint for: {model_name}")
+            return CustomGenerateContentClient(custom_endpoint, custom_key)
+
         from google import genai
         from google.genai.types import HttpOptions
 

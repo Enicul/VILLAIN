@@ -1,0 +1,47 @@
+data:
+  data_path: "dataset/AVerImaTeC/val.json"
+  train_data_path: "dataset/AVerImaTeC/train.json"
+  image_dir: "dataset/AVerImaTeC/images"
+  output_dir: "outputs-local-val-qwen3vl"
+  target: "val"
+
+stores:
+  knowledge_store_path: "dataset/AVerImaTeC_Shared_Task/Knowledge_Store/val"
+  text_related_store_path: "dataset/AVerImaTeC_Shared_Task/Vector_Store/val/text_related/text_related_store_text_val_filled_0d3B"
+  image_related_store_path: "dataset/AVerImaTeC_Shared_Task/Vector_Store/val/text_related/image_related_store_text_val_filled_0d3B"
+  image_embedding_store_path: "dataset/AVerImaTeC_Shared_Task/Vector_Store/val/image_related/image_related_store_image_val_7B"
+
+models:
+  text_model: "mixedbread-ai/mxbai-embed-large-v1"
+  text_model_type: "mxbai"
+  image_model: "OpenSearch-AI/Ops-MM-embedding-v1-7B"
+  vlm_model: "Qwen/Qwen3-VL-8B-Thinking"
+  reranker_model: "mixedbread-ai/mxbai-rerank-large-v1"
+  device: "cuda:0"
+
+evidence:
+  num_text_text_evidence: 10
+  num_image_text_evidence: 10
+  num_image_image_evidence_image: 1
+  num_image_image_evidence_text: 5
+
+qa_generation:
+  qa_per_iteration: 5
+  max_qa_iterations: 4
+  max_qa_pairs: 20
+  num_qa_to_select: 10
+
+retrieval:
+  use_reranker: true
+  reranker_fetch_k: 100
+
+processing:
+  preload_models: true
+
+evaluation:
+  eval_model: "Qwen/Qwen3-VL-8B-Thinking"
+  eval_justification: true
+
+evaluation:
+  api_model: "gemini-2.0-flash-001"
+  eval_justification: true

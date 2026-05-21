@@ -203,6 +203,8 @@ Examples:
     text_model_type = get_nested(cfg, 'models', 'text_model_type', default='qwen')
     image_model = get_nested(cfg, 'models', 'image_model', default='OpenSearch-AI/Ops-MM-embedding-v1-7B')
     vlm_model = get_nested(cfg, 'models', 'vlm_model', default='Qwen/Qwen2.5-VL-7B-Instruct')
+    vlm_suppression_strength = get_nested(cfg, 'models', 'vlm_suppression_strength', default=1.0)
+    vlm_suppression_layers = get_nested(cfg, 'models', 'vlm_suppression_layers', default=[])
     reranker_model = get_nested(cfg, 'models', 'reranker_model', default='Qwen/Qwen3-Reranker-8B')
 
     # Evidence configuration
@@ -242,6 +244,8 @@ Examples:
         text_model_type=text_model_type,
         image_model=image_model,
         vlm_model=vlm_model,
+        vlm_suppression_strength=vlm_suppression_strength,
+        vlm_suppression_layers=vlm_suppression_layers,
         reranker_model=reranker_model
     )
 
@@ -280,6 +284,7 @@ Examples:
     print(f"  Text Model: {agent_config.text_model} ({agent_config.text_model_type})")
     print(f"  Image Model: {agent_config.image_model}")
     print(f"  VLM Model: {agent_config.vlm_model}")
+    print(f"  VLM Suppression: strength={agent_config.vlm_suppression_strength}, layers={agent_config.vlm_suppression_layers}")
     if use_reranker:
         print(f"  Reranker: {agent_config.reranker_model}")
     print(f"  Device: {agent_config.device}")
@@ -394,4 +399,3 @@ Examples:
 
 if __name__ == '__main__':
     main()
-

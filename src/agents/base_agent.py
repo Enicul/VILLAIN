@@ -19,7 +19,7 @@ import torch
 # Add src directory to path for models import
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import (
-    Qwen3VLModel, GenerationConfig, OpsMMEmbeddingV1,
+    Qwen3VLModel, GenerationConfig, MllamaVLModel, MllamaGenerationConfig, OpsMMEmbeddingV1,
     GeminiModel, GeminiGenerationConfig,
     Qwen3Reranker, RerankerConfig,
     MxbaiReranker, MxbaiRerankerConfig,
@@ -55,6 +55,8 @@ class AgentConfig:
     text_model_type: str = "qwen"  # 'qwen', 'mxbai', or 'nomic'
     image_model: str = "OpenSearch-AI/Ops-MM-embedding-v1-7B"
     vlm_model: str = "Qwen/Qwen2.5-VL-7B-Instruct"  # VLM for all agents
+    vlm_suppression_strength: float = 1.0
+    vlm_suppression_layers: List[int] = field(default_factory=list)
     reranker_model: str = "Qwen/Qwen3-Reranker-8B"  # Reranker model
 
 
@@ -99,6 +101,7 @@ class SharedModels:
 
         # Check if using Gemini
         self._is_gemini = config.vlm_model in self.GEMINI_MODELS
+        self._is_mllama = self._is_mllama_model(config.vlm_model)
 
         # Models (loaded lazily)
         self._vlm = None  # Can be Qwen3VLModel or GeminiModel - stays on GPU
@@ -121,12 +124,24 @@ class SharedModels:
                 )
                 self._vlm.load()
                 return self._vlm.model, None  # Gemini has no processor
+            elif self._is_mllama:
+                self._vlm = MllamaVLModel(
+                    model_name=self.config.vlm_model,
+                    device=self.device,
+                    generation_config=MllamaGenerationConfig(),
+                    suppression_strength=self.config.vlm_suppression_strength,
+                    suppression_layers=self.config.vlm_suppression_layers,
+                )
+                self._vlm.load()
+                return self._vlm.model, self._vlm.processor
             else:
                 # Use Qwen3VL model
                 self._vlm = Qwen3VLModel(
                     model_name=self.config.vlm_model,
                     device=self.device,
-                    generation_config=GenerationConfig()
+                    generation_config=GenerationConfig(),
+                    suppression_strength=self.config.vlm_suppression_strength,
+                    suppression_layers=self.config.vlm_suppression_layers,
                 )
                 self._vlm.load()
                 return self._vlm.model, self._vlm.processor
@@ -134,6 +149,10 @@ class SharedModels:
         if self._is_gemini:
             return self._vlm.model, None
         return self._vlm.model, self._vlm.processor
+
+    def _is_mllama_model(self, model_name: str) -> bool:
+        lower_name = model_name.lower()
+        return "llama-3.2" in lower_name and "vision" in lower_name
 
     @property
     def vlm(self):
@@ -304,7 +323,8 @@ class SharedModels:
         max_new_tokens: int = 40960,
         temperature: float = 1.0,
         top_p: float = 0.95,
-        top_k: int = 20
+        top_k: int = 20,
+        **kwargs
     ) -> str:
         """Generate text using the VLM model.
 
@@ -315,7 +335,8 @@ class SharedModels:
             return self.vlm.generate(
                 messages,
                 max_new_tokens=max_new_tokens,
-                temperature=temperature
+                temperature=temperature,
+                **kwargs
             )
         else:
             return self.vlm.generate(
@@ -323,7 +344,8 @@ class SharedModels:
                 max_new_tokens=max_new_tokens,
                 temperature=temperature,
                 top_p=top_p,
-                top_k=top_k
+                top_k=top_k,
+                **kwargs
             )
 
     def extract_response_after_think(self, output_text: str) -> str:
@@ -438,4 +460,3 @@ class BaseAgent(ABC):
             f'image_related_store_image_{self.config.target}',
             str(claim_id)
         )
-

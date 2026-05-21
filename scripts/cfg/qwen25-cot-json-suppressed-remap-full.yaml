@@ -1,0 +1,55 @@
+# Full validation configuration for VILLAIN with remapped suppressed Qwen2.5-VL LoRA,
+# CoT prompts, and constrained JSON for Agent 4/5.
+
+data:
+  data_path: "dataset/AVerImaTeC/val.json"
+  train_data_path: "dataset/AVerImaTeC/train.json"
+  image_dir: "dataset/AVerImaTeC/images"
+  output_dir: "outputs-qwen25-cot-json-suppressed-remap-full"
+  target: "val"
+
+stores:
+  knowledge_store_path: "dataset/AVerImaTeC_Shared_Task/Knowledge_Store/val"
+  text_related_store_path: "dataset/AVerImaTeC_Shared_Task/Vector_Store/val/text_related/text_related_store_text_val_filled_0d3B"
+  image_related_store_path: "dataset/AVerImaTeC_Shared_Task/Vector_Store/val/text_related/image_related_store_text_val_filled_0d3B"
+  image_embedding_store_path: "dataset/AVerImaTeC_Shared_Task/Vector_Store/val/image_related_7B"
+
+models:
+  text_model: "/home/aied_test/models/mxbai-embed-large-v1"
+  text_model_type: "mxbai"
+  image_model: "/home/aied_test/models/Ops-MM-embedding-v1-7B"
+  vlm_model: "/home/aied_test/ParamMute/checkpoints/qwen2vl_lora_layer12_lambda0.5_hf_qwen25vl_remap"
+  reranker_model: "/home/aied_test/models/mxbai-rerank-large-v1"
+  device: "cuda:0"
+
+evidence:
+  num_text_text_evidence: 10
+  num_image_text_evidence: 10
+  num_image_image_evidence_image: 1
+  num_image_image_evidence_text: 5
+
+qa_generation:
+  qa_per_iteration: 2
+  max_qa_iterations: 2
+  max_qa_pairs: 4
+  num_qa_to_select: 2
+
+retrieval:
+  use_reranker: true
+  reranker_fetch_k: 100
+
+processing:
+  preload_models: false
+  max_samples: null
+  save_intermediate_output: true
+  start_idx: null
+  end_idx: null
+
+evaluation:
+  api_model: ""
+  eval_model: "google/gemma-3-27b-it"
+  eval_justification: false
+
+slurm:
+  total_samples: 152
+  num_jobs: 152
